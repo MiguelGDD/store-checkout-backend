@@ -8,6 +8,7 @@ import { Customer } from '../../../../core/database/domain/entities/customer.ent
 import { Product } from '../../../../core/database/domain/entities/product.entity';
 import { Transaction } from '../../../../core/database/domain/entities/transaction.entity';
 import { TransactionStatus } from '../../../../core/database/domain/enums';
+import { DeliveriesService } from '../../../deliveries/infrastructure/services/deliveries.service';
 import { ProductsService } from '../../../products/infrastructure/services/products.service';
 import { PaymentGatewayService } from './payment-gateway.service';
 import { TransactionsService } from './transactions.service';
@@ -40,6 +41,9 @@ describe('TransactionsService', () => {
   };
   let productsService: {
     discountPurchasedProducts: jest.Mock;
+  };
+  let deliveriesService: {
+    assignToTransaction: jest.Mock;
   };
 
   const customer = {
@@ -108,6 +112,10 @@ describe('TransactionsService', () => {
       discountPurchasedProducts: jest.fn(),
     };
 
+    deliveriesService = {
+      assignToTransaction: jest.fn(),
+    };
+
     manager.create.mockClear();
     manager.save.mockClear();
 
@@ -117,6 +125,7 @@ describe('TransactionsService', () => {
       productRepository as unknown as Repository<Product>,
       paymentGatewayService as unknown as PaymentGatewayService,
       productsService as unknown as ProductsService,
+      deliveriesService as unknown as DeliveriesService,
     );
   });
 
@@ -192,6 +201,10 @@ describe('TransactionsService', () => {
       status: 'APPROVED',
     });
     transactionRepository.findOne.mockResolvedValue(finalTransaction);
+    deliveriesService.assignToTransaction.mockResolvedValue({
+      id: 20,
+      status: 'ASSIGNED',
+    });
 
     await expect(
       service.checkout({
@@ -255,6 +268,7 @@ describe('TransactionsService', () => {
     expect(productsService.discountPurchasedProducts).toHaveBeenCalledWith(
       expect.objectContaining({ id: 10 }),
     );
+    expect(deliveriesService.assignToTransaction).toHaveBeenCalledWith(10);
   });
 
   it('should mark the transaction as declined when the provider declines it', async () => {
@@ -317,6 +331,7 @@ describe('TransactionsService', () => {
       },
     );
     expect(productsService.discountPurchasedProducts).not.toHaveBeenCalled();
+    expect(deliveriesService.assignToTransaction).not.toHaveBeenCalled();
   });
 
   it('should map a voided provider transaction', async () => {
@@ -383,6 +398,7 @@ describe('TransactionsService', () => {
       },
     );
     expect(productsService.discountPurchasedProducts).not.toHaveBeenCalled();
+    expect(deliveriesService.assignToTransaction).not.toHaveBeenCalled();
   });
 
   it('should mark the transaction as error when the provider call fails', async () => {
@@ -424,6 +440,7 @@ describe('TransactionsService', () => {
       },
     );
     expect(productsService.discountPurchasedProducts).not.toHaveBeenCalled();
+    expect(deliveriesService.assignToTransaction).not.toHaveBeenCalled();
   });
 
   it('should throw when customer does not exist', async () => {
