@@ -16,5 +16,6 @@ export default registerAs('app', () => ({
     apiUrl: process.env.PAYMENT_API_URL ?? '',
     publicKey: process.env.PAYMENT_PUBLIC_KEY ?? '',
     secretKey: process.env.PAYMENT_SECRET_KEY ?? '',
+    integritySecret: process.env.PAYMENT_INTEGRITY_SECRET ?? '',
   },
 }));
