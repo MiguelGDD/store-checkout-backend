@@ -66,6 +66,20 @@ describe('PaymentGatewayService', () => {
     );
   });
 
+  it('should reject when acceptance tokens are missing', async () => {
+    httpService.get.mockReturnValue(
+      of({
+        data: {
+          data: {},
+        },
+      }),
+    );
+
+    await expect(service.getAcceptanceTokens()).rejects.toThrow(
+      BadGatewayException,
+    );
+  });
+
   it('should tokenize a card with the public key', async () => {
     httpService.post.mockReturnValue(
       of({
@@ -102,6 +116,26 @@ describe('PaymentGatewayService', () => {
         },
       },
     );
+  });
+
+  it('should reject when card tokenization does not return a token', async () => {
+    httpService.post.mockReturnValue(
+      of({
+        data: {
+          data: {},
+        },
+      }),
+    );
+
+    await expect(
+      service.tokenizeCard({
+        number: '4242424242424242',
+        expMonth: '06',
+        expYear: '29',
+        cvc: '123',
+        cardHolder: 'Pedro Perez',
+      }),
+    ).rejects.toThrow(BadGatewayException);
   });
 
   it('should create a transaction with the integrity signature', async () => {
@@ -170,6 +204,30 @@ describe('PaymentGatewayService', () => {
     );
   });
 
+  it('should reject when transaction creation does not return an id', async () => {
+    httpService.post.mockReturnValue(
+      of({
+        data: {
+          data: {
+            status: 'APPROVED',
+          },
+        },
+      }),
+    );
+
+    await expect(
+      service.createTransaction({
+        acceptanceToken: 'acceptance-token',
+        acceptPersonalAuthToken: 'personal-token',
+        amountInCents: 100000,
+        currency: 'COP',
+        customerEmail: 'juan.perez@example.com',
+        paymentToken: 'card-token',
+        reference: 'reference-1',
+      }),
+    ).rejects.toThrow(BadGatewayException);
+  });
+
   it('should get the transaction status with the public key', async () => {
     httpService.get.mockReturnValue(
       of({
@@ -202,6 +260,22 @@ describe('PaymentGatewayService', () => {
         },
       },
     );
+  });
+
+  it('should reject when fetching a transaction without an id', async () => {
+    httpService.get.mockReturnValue(
+      of({
+        data: {
+          data: {
+            status: 'APPROVED',
+          },
+        },
+      }),
+    );
+
+    await expect(
+      service.getTransaction('provider-transaction-id'),
+    ).rejects.toThrow(BadGatewayException);
   });
 
   it('should poll the transaction until it reaches a final status', async () => {
@@ -263,5 +337,30 @@ describe('PaymentGatewayService', () => {
     await expect(
       service.waitForFinalTransaction('provider-transaction-id', 1, 0),
     ).rejects.toThrow(BadGatewayException);
+  });
+
+  it('should support the default polling configuration', async () => {
+    httpService.get.mockReturnValue(
+      of({
+        data: {
+          data: {
+            id: 'provider-transaction-id',
+            reference: 'reference-1',
+            amount_in_cents: 100000,
+            currency: 'COP',
+            status: 'APPROVED',
+          },
+        },
+      }),
+    );
+
+    await expect(
+      service.waitForFinalTransaction('provider-transaction-id'),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: 'provider-transaction-id',
+        status: 'APPROVED',
+      }),
+    );
   });
 });

@@ -122,6 +122,24 @@ describe('DeliveriesService', () => {
     });
   });
 
+  it('should throw when the saved delivery cannot be reloaded', async () => {
+    transactionRepository.findOne.mockResolvedValue(transaction);
+    deliveryRepository.save.mockResolvedValue({
+      id: 15,
+    });
+    deliveryRepository.findOne.mockResolvedValueOnce(null);
+
+    await expect(service.assignToTransaction(10)).rejects.toThrow(
+      NotFoundException,
+    );
+
+    expect(deliveryRepository.create).toHaveBeenCalledWith({
+      address: 'Calle 123 #45-67, Bogota',
+      status: DeliveryStatus.ASSIGNED,
+      customer: transaction.customer,
+      transaction,
+    });
+  });
   it('should return the existing delivery when the transaction was already assigned', async () => {
     transactionRepository.findOne.mockResolvedValue({
       ...transaction,
