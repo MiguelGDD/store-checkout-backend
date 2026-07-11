@@ -140,7 +140,6 @@ describe('DeliveriesService', () => {
       transaction,
     });
   });
-
   it('should return the existing delivery when the transaction was already assigned', async () => {
     transactionRepository.findOne.mockResolvedValue({
       ...transaction,
