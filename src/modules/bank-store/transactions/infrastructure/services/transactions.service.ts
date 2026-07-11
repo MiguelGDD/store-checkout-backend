@@ -11,6 +11,7 @@ import { Product } from '../../../../core/database/domain/entities/product.entit
 import { TransactionProduct } from '../../../../core/database/domain/entities/transaction-product.entity';
 import { Transaction } from '../../../../core/database/domain/entities/transaction.entity';
 import { TransactionStatus } from '../../../../core/database/domain/enums';
+import { DeliveriesService } from '../../../deliveries/infrastructure/services/deliveries.service';
 import { ProductsService } from '../../../products/infrastructure/services/products.service';
 import {
   AcceptanceTokensInput,
@@ -32,6 +33,7 @@ export class TransactionsService {
     private readonly productRepository: Repository<Product>,
     private readonly paymentGatewayService: PaymentGatewayService,
     private readonly productsService: ProductsService,
+    private readonly deliveriesService: DeliveriesService,
   ) {}
 
   async checkout(dto: CreateTransactionInput): Promise<Transaction> {
@@ -121,6 +123,7 @@ export class TransactionsService {
 
     if (finalStatus === TransactionStatus.APPROVED) {
       await this.productsService.discountPurchasedProducts(pendingTransaction);
+      await this.deliveriesService.assignToTransaction(pendingTransaction.id);
     }
 
     return this.findOneOrFail(pendingTransaction.id);
