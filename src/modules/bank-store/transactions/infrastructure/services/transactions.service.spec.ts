@@ -15,6 +15,12 @@ import { TransactionsService } from './transactions.service';
 
 describe('TransactionsService', () => {
   let service: TransactionsService;
+  type TransactionsServiceInternals = {
+    mapProviderStatus: (
+      status: 'APPROVED' | 'DECLINED' | 'VOIDED' | 'ERROR' | 'PENDING',
+    ) => TransactionStatus;
+    findOneOrFail: (id: number) => Promise<Transaction>;
+  };
   type ManagerMock = {
     create: jest.Mock;
     save: jest.Mock;
@@ -498,6 +504,43 @@ describe('TransactionsService', () => {
     expect(paymentGatewayService.getAcceptanceTokens).not.toHaveBeenCalled();
   });
 
+  it('should throw when loaded products are inconsistent', async () => {
+    customerRepository.findOneBy.mockResolvedValue(customer);
+    productRepository.find.mockResolvedValue([
+      {
+        ...products[0],
+      },
+      {
+        ...products[0],
+      },
+    ]);
+
+    await expect(
+      service.checkout({
+        customerId: 1,
+        items: [
+          {
+            productId: 1,
+            quantity: 1,
+          },
+          {
+            productId: 2,
+            quantity: 1,
+          },
+        ],
+        payment: {
+          number: '4242424242424242',
+          expMonth: '06',
+          expYear: '29',
+          cvc: '123',
+          cardHolder: 'Pedro Perez',
+        },
+      }),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(paymentGatewayService.getAcceptanceTokens).not.toHaveBeenCalled();
+  });
+
   it('should throw when there is not enough stock', async () => {
     customerRepository.findOneBy.mockResolvedValue(customer);
     productRepository.find.mockResolvedValue([
@@ -527,5 +570,70 @@ describe('TransactionsService', () => {
     ).rejects.toThrow(ConflictException);
 
     expect(paymentGatewayService.getAcceptanceTokens).not.toHaveBeenCalled();
+  });
+
+  it('should throw when the transaction cannot be reloaded after approval', async () => {
+    customerRepository.findOneBy.mockResolvedValue(customer);
+    productRepository.find.mockResolvedValue([products[0]]);
+    paymentGatewayService.getAcceptanceTokens.mockResolvedValue({
+      acceptanceToken: 'acceptance-token',
+      personalAuthToken: 'personal-token',
+    });
+    paymentGatewayService.tokenizeCard.mockResolvedValue('card-token');
+    paymentGatewayService.createTransaction.mockResolvedValue({
+      id: 'provider-transaction-id',
+      reference: 'reference-1',
+      amount_in_cents: 100000,
+      currency: 'COP',
+      status: 'APPROVED',
+    });
+    transactionRepository.findOne.mockResolvedValueOnce(null);
+    deliveriesService.assignToTransaction.mockResolvedValue({
+      id: 20,
+      status: 'ASSIGNED',
+    });
+
+    await expect(
+      service.checkout({
+        customerId: 1,
+        items: [
+          {
+            productId: 1,
+            quantity: 1,
+          },
+        ],
+        payment: {
+          number: '4242424242424242',
+          expMonth: '06',
+          expYear: '29',
+          cvc: '123',
+          cardHolder: 'Pedro Perez',
+        },
+      }),
+    ).rejects.toThrow(NotFoundException);
+
+    expect(productsService.discountPurchasedProducts).toHaveBeenCalled();
+    expect(deliveriesService.assignToTransaction).toHaveBeenCalledWith(10);
+  });
+
+  it('should map provider error and pending statuses to error', () => {
+    const internalService = service as unknown as TransactionsServiceInternals;
+
+    expect(internalService.mapProviderStatus('ERROR')).toBe(
+      TransactionStatus.ERROR,
+    );
+    expect(internalService.mapProviderStatus('PENDING')).toBe(
+      TransactionStatus.ERROR,
+    );
+  });
+
+  it('should throw when a transaction cannot be found after processing', async () => {
+    transactionRepository.findOne.mockResolvedValue(null);
+
+    const internalService = service as unknown as TransactionsServiceInternals;
+
+    await expect(internalService.findOneOrFail(10)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

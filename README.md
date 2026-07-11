@@ -2,29 +2,57 @@
 
 Backend API built with NestJS and TypeScript for checkout, payment processing, stock control, and delivery assignment.
 
-## What is included
+## Stack
 
-- NestJS 11 bootstrap
-- Global config module
-- Database module placeholder ready for TypeORM
-- API key middleware
+- NestJS 11
+- TypeORM 0.3
+- PostgreSQL
+- Jest + ts-jest
+- Swagger at `/docs`
+
+## Features
+
+- Product catalog
+- Checkout flow with pending transaction creation
+- Sandbox payment integration
+- Automatic stock control after approved payments
+- Automatic delivery assignment after approved payments
+- Delivery lookup and manual assignment endpoint
 - Health check endpoint
-- Swagger setup at `/docs`
-- Jest unit test scaffold
 
 ## Requirements
 
 - Node.js 20+
 - npm 10+
+- PostgreSQL 15+
+- Sandbox payment credentials
 
-## Setup
+## Environment variables
+
+Copy [`.env.example`](./.env.example) to `.env` and set the values below.
+
+| Variable | Description |
+| --- | --- |
+| `PORT` | Application port |
+| `NODE_ENV` | Runtime environment |
+| `DB_HOST` | PostgreSQL host |
+| `DB_PORT` | PostgreSQL port |
+| `DB_USERNAME` | Database user |
+| `DB_PASSWORD` | Database password |
+| `DB_NAME` | Database name |
+| `API_KEY` | API key required by the middleware |
+| `PAYMENT_API_URL` | Sandbox payment API base URL |
+| `PAYMENT_PUBLIC_KEY` | Public payment key |
+| `PAYMENT_SECRET_KEY` | Secret payment key |
+| `PAYMENT_INTEGRITY_SECRET` | Integrity signature secret |
+
+## Local setup
 
 ```bash
 npm install
-# PowerShell
 Copy-Item .env.example .env
-# Bash
-# cp .env.example .env
+npm run migration:run
+npm run seed
 npm run start:dev
 ```
 
@@ -33,13 +61,56 @@ npm run start:dev
 - `npm run start:dev`
 - `npm run build`
 - `npm run test`
-- `npm run test:cov`
+- `npm run test:cov -- --runInBand`
 - `npm run lint`
 - `npm run migration:run`
 - `npm run migration:drop`
 - `npm run seed`
 
+## Testing
+
+The test suite is configured with a global coverage threshold of 100% for:
+
+- statements
+- branches
+- functions
+- lines
+
+Run the coverage report with:
+
+```bash
+npm run test:cov -- --runInBand
+```
+
+## Docker
+
+Build the image:
+
+```bash
+docker build -t store-checkout-backend .
+```
+
+Run the container:
+
+```bash
+docker run --rm -p 3000:3000 --env-file .env store-checkout-backend
+```
+
+## Database
+
+- Run migrations with `npm run migration:run`
+- Load seed data with `npm run seed`
+- Drop the schema with `npm run migration:drop`
+
 ## Endpoints
 
 - `GET /health`
+- `GET /products`
+- `GET /products/:id`
+- `POST /transactions`
+- `GET /transactions`
+- `GET /transactions/:id`
+- `GET /deliveries`
+- `GET /deliveries/:id`
+- `POST /deliveries/assign/:transactionId`
 - Swagger UI: `/docs`
