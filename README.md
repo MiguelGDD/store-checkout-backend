@@ -35,6 +35,7 @@ Copy [`.env.example`](./.env.example) to `.env` and set the values below.
 | --- | --- |
 | `PORT` | Application port |
 | `NODE_ENV` | Runtime environment |
+| `DATABASE_URL` | Optional single Postgres connection string |
 | `DB_HOST` | PostgreSQL host |
 | `DB_PORT` | PostgreSQL port |
 | `DB_USERNAME` | Database user |
@@ -102,16 +103,23 @@ The repository includes a `fly.toml` file and a Dockerfile ready for Fly.io.
 
 The app is configured to listen on port `3000` and bind to `0.0.0.0`, which is required for Fly's proxy to reach it.
 
-1. Install `flyctl` and authenticate with `fly auth login`.
-2. Create or select the Fly app, then set the runtime secrets:
+1. Create a Postgres cluster in Fly:
+
+```bash
+fly postgres create
+```
+
+2. Attach the database to the app so Fly sets `DATABASE_URL` automatically:
+
+```bash
+fly postgres attach <postgres-app-name> --app store-checkout-backend
+```
+
+3. Install `flyctl` and authenticate with `fly auth login`.
+4. Create or select the Fly app, then set the rest of the runtime secrets:
 
 ```bash
 fly secrets set \
-  DB_HOST=... \
-  DB_PORT=5432 \
-  DB_USERNAME=... \
-  DB_PASSWORD=... \
-  DB_NAME=... \
   API_KEY=... \
   PAYMENT_API_URL=... \
   PAYMENT_PUBLIC_KEY=... \
@@ -119,13 +127,13 @@ fly secrets set \
   PAYMENT_INTEGRITY_SECRET=...
 ```
 
-3. Deploy the app:
+5. Deploy the app:
 
 ```bash
 fly deploy
 ```
 
-If you need to run migrations against the deployed database, do it from an environment that has the TypeORM CLI dependencies available and the same database variables configured.
+If you need to run migrations against the deployed database, run them from an environment that has the TypeORM CLI dependencies available and the same `DATABASE_URL` configured.
 
 ## Database
 

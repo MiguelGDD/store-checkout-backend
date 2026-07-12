@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { join } from 'path';
+import { buildPostgresOptions } from './database-options';
 
 @Module({
   imports: [
@@ -9,15 +10,15 @@ import { join } from 'path';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.getOrThrow<string>('app.database.host'),
-        port: configService.getOrThrow<number>('app.database.port'),
-        username: configService.getOrThrow<string>('app.database.username'),
-        password: configService.getOrThrow<string>('app.database.password'),
-        database: configService.getOrThrow<string>('app.database.name'),
+        ...buildPostgresOptions({
+          url: configService.get<string>('app.database.url'),
+          host: configService.get<string>('app.database.host'),
+          port: configService.get<number>('app.database.port'),
+          username: configService.get<string>('app.database.username'),
+          password: configService.get<string>('app.database.password'),
+          database: configService.get<string>('app.database.name'),
+        }),
         autoLoadEntities: true,
-        synchronize: false,
-        logging: false,
         migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
       }),
     }),
