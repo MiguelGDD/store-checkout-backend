@@ -35,12 +35,12 @@ export class InitialSchema1710000000000 implements MigrationInterface {
           {
             name: 'create_at',
             type: 'timestamptz',
-            default: () => 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP',
           },
           {
             name: 'update_at',
             type: 'timestamptz',
-            default: () => 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP',
           },
         ],
       }),
@@ -66,12 +66,12 @@ export class InitialSchema1710000000000 implements MigrationInterface {
           {
             name: 'create_at',
             type: 'timestamptz',
-            default: () => 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP',
           },
           {
             name: 'update_at',
             type: 'timestamptz',
-            default: () => 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP',
           },
         ],
       }),
@@ -110,7 +110,7 @@ export class InitialSchema1710000000000 implements MigrationInterface {
             name: 'status',
             type: 'varchar',
             length: '50',
-            default: 'PENDING',
+            default: "'PENDING'",
           },
           {
             name: 'bank_transaction_id',
@@ -126,12 +126,12 @@ export class InitialSchema1710000000000 implements MigrationInterface {
           {
             name: 'create_at',
             type: 'timestamptz',
-            default: () => 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP',
           },
           {
             name: 'update_at',
             type: 'timestamptz',
-            default: () => 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP',
           },
         ],
       }),
@@ -184,12 +184,12 @@ export class InitialSchema1710000000000 implements MigrationInterface {
           {
             name: 'create_at',
             type: 'timestamptz',
-            default: () => 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP',
           },
           {
             name: 'update_at',
             type: 'timestamptz',
-            default: () => 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP',
           },
         ],
       }),
@@ -247,7 +247,7 @@ export class InitialSchema1710000000000 implements MigrationInterface {
             name: 'status',
             type: 'varchar',
             length: '50',
-            default: 'PENDING',
+            default: "'PENDING'",
           },
           {
             name: 'customer_id',
@@ -263,12 +263,12 @@ export class InitialSchema1710000000000 implements MigrationInterface {
           {
             name: 'create_at',
             type: 'timestamptz',
-            default: () => 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP',
           },
           {
             name: 'update_at',
             type: 'timestamptz',
-            default: () => 'CURRENT_TIMESTAMP',
+            default: 'CURRENT_TIMESTAMP',
           },
         ],
       }),
