@@ -1,18 +1,27 @@
 import {
+  Inject,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
-import { In, Repository } from 'typeorm';
 import { Customer } from '../../../../core/database/domain/entities/customer.entity';
-import { Product } from '../../../../core/database/domain/entities/product.entity';
 import { TransactionProduct } from '../../../../core/database/domain/entities/transaction-product.entity';
 import { Transaction } from '../../../../core/database/domain/entities/transaction.entity';
 import { TransactionStatus } from '../../../../core/database/domain/enums';
 import { DeliveriesService } from '../../../deliveries/infrastructure/services/deliveries.service';
 import { ProductsService } from '../../../products/infrastructure/services/products.service';
+import { CustomerRepositoryPort } from '../../../shared/domain/ports/customer.repository.port';
+import {
+  ProductRepositoryPort,
+  TransactionProductRepositoryPort,
+  PRODUCT_REPOSITORY,
+  TRANSACTION_PRODUCT_REPOSITORY,
+} from '../../../shared/domain/ports/product.repository.port';
+import {
+  TransactionRepositoryPort,
+  TRANSACTION_REPOSITORY,
+} from '../../../shared/domain/ports/transaction.repository.port';
 import {
   AcceptanceTokensInput,
   CreatePaymentTransactionInput,
@@ -20,18 +29,25 @@ import {
   ProviderTransactionStatus,
   PurchasedProductInput,
 } from '../../transactions.types';
-import { PaymentGatewayService } from './payment-gateway.service';
+import { PaymentGatewayPort } from '../../../shared/domain/ports/payment-gateway.port';
+import {
+  CUSTOMER_REPOSITORY,
+} from '../../../shared/domain/ports/customer.repository.port';
+import { PAYMENT_GATEWAY } from '../../../shared/domain/ports/payment-gateway.port';
 
 @Injectable()
 export class TransactionsService {
   constructor(
-    @InjectRepository(Transaction)
-    private readonly transactionRepository: Repository<Transaction>,
-    @InjectRepository(Customer)
-    private readonly customerRepository: Repository<Customer>,
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
-    private readonly paymentGatewayService: PaymentGatewayService,
+    @Inject(TRANSACTION_REPOSITORY)
+    private readonly transactionRepository: TransactionRepositoryPort,
+    @Inject(CUSTOMER_REPOSITORY)
+    private readonly customerRepository: CustomerRepositoryPort,
+    @Inject(PRODUCT_REPOSITORY)
+    private readonly productRepository: ProductRepositoryPort,
+    @Inject(TRANSACTION_PRODUCT_REPOSITORY)
+    private readonly transactionProductRepository: TransactionProductRepositoryPort,
+    @Inject(PAYMENT_GATEWAY)
+    private readonly paymentGatewayService: PaymentGatewayPort,
     private readonly productsService: ProductsService,
     private readonly deliveriesService: DeliveriesService,
   ) {}
@@ -45,33 +61,24 @@ export class TransactionsService {
     const reference = randomUUID();
 
     this.ensureStockAvailability(selectedProducts);
+    const pendingTransaction = await this.transactionRepository.createPending({
+      reference,
+      totalAmount,
+      baseFee,
+      deliveryFee,
+      customerId: customer.id,
+    });
 
-    const pendingTransaction =
-      await this.transactionRepository.manager.transaction(async (manager) => {
-        const transaction = manager.create(Transaction, {
-          reference,
-          totalAmount,
-          baseFee,
-          deliveryFee,
-          status: TransactionStatus.PENDING,
-          customer,
-        });
+    const transactionProducts = selectedProducts.map((item) =>
+      ({
+        transaction: pendingTransaction,
+        product: item.product,
+        quantity: item.quantity,
+        unitAmount: item.product.price,
+      }) as TransactionProduct,
+    );
 
-        const savedTransaction = await manager.save(Transaction, transaction);
-
-        const transactionProducts = selectedProducts.map((item) =>
-          manager.create(TransactionProduct, {
-            transaction: savedTransaction,
-            product: item.product,
-            quantity: item.quantity,
-            unitAmount: item.product.price,
-          }),
-        );
-
-        await manager.save(TransactionProduct, transactionProducts);
-
-        return savedTransaction;
-      });
+    await this.transactionProductRepository.saveMany(transactionProducts);
 
     let finalProviderTransactionId: string | null = null;
     let finalStatus = TransactionStatus.ERROR;
@@ -103,22 +110,18 @@ export class TransactionsService {
       finalProviderTransactionId = finalProviderTransaction.id;
       finalStatus = this.mapProviderStatus(finalProviderTransaction.status);
     } catch (error) {
-      await this.transactionRepository.update(
-        { id: pendingTransaction.id },
-        {
-          status: TransactionStatus.ERROR,
-        },
+      await this.transactionRepository.updateStatus(
+        pendingTransaction.id,
+        TransactionStatus.ERROR,
       );
 
       throw error;
     }
 
-    await this.transactionRepository.update(
-      { id: pendingTransaction.id },
-      {
-        status: finalStatus,
-        bankTransactionId: finalProviderTransactionId,
-      },
+    await this.transactionRepository.updateStatus(
+      pendingTransaction.id,
+      finalStatus,
+      finalProviderTransactionId,
     );
 
     if (finalStatus === TransactionStatus.APPROVED) {
@@ -130,29 +133,11 @@ export class TransactionsService {
   }
 
   async findAll(): Promise<Transaction[]> {
-    return this.transactionRepository.find({
-      order: { createAt: 'DESC' },
-      relations: {
-        customer: true,
-        delivery: true,
-        transactionProducts: {
-          product: true,
-        },
-      },
-    });
+    return this.transactionRepository.findAll();
   }
 
   async findOne(id: number): Promise<Transaction | null> {
-    return this.transactionRepository.findOne({
-      where: { id },
-      relations: {
-        customer: true,
-        delivery: true,
-        transactionProducts: {
-          product: true,
-        },
-      },
-    });
+    return this.transactionRepository.findById(id);
   }
 
   private async findOneOrFail(id: number): Promise<Transaction> {
@@ -166,9 +151,7 @@ export class TransactionsService {
   }
 
   private async findCustomer(customerId: number): Promise<Customer> {
-    const customer = await this.customerRepository.findOneBy({
-      id: customerId,
-    });
+    const customer = await this.customerRepository.findById(customerId);
 
     if (!customer) {
       throw new NotFoundException(`Customer with ID ${customerId} not found`);
@@ -184,9 +167,7 @@ export class TransactionsService {
     const productIds = [
       ...new Set(normalizedItems.map((item) => item.productId)),
     ];
-    const products = await this.productRepository.find({
-      where: { id: In(productIds) },
-    });
+    const products = await this.productRepository.findByIds(productIds);
 
     if (products.length !== productIds.length) {
       const foundIds = new Set(products.map((product) => product.id));

@@ -1,66 +1,58 @@
 import {
+  Inject,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { Product } from '../../../../core/database/domain/entities/product.entity';
-import { TransactionProduct } from '../../../../core/database/domain/entities/transaction-product.entity';
 import { Transaction } from '../../../../core/database/domain/entities/transaction.entity';
+import {
+  ProductRepositoryPort,
+  TransactionProductRepositoryPort,
+  PRODUCT_REPOSITORY,
+  TRANSACTION_PRODUCT_REPOSITORY,
+} from '../../../shared/domain/ports/product.repository.port';
 
 @Injectable()
 export class ProductsService {
   constructor(
-    @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
-    @InjectRepository(TransactionProduct)
-    private readonly transactionProductRepository: Repository<TransactionProduct>,
+    @Inject(PRODUCT_REPOSITORY)
+    private readonly productRepository: ProductRepositoryPort,
+    @Inject(TRANSACTION_PRODUCT_REPOSITORY)
+    private readonly transactionProductRepository: TransactionProductRepositoryPort,
   ) {}
 
   async findAll(): Promise<Product[]> {
-    return this.productRepository.find({
-      order: { name: 'ASC' },
-    });
+    return this.productRepository.findAll();
   }
 
   async findOne(id: number): Promise<Product | null> {
-    return this.productRepository.findOneBy({ id });
+    return this.productRepository.findById(id);
   }
 
   async discountPurchasedProducts(transaction: Transaction): Promise<void> {
-    await this.productRepository.manager.transaction(async (manager) => {
-      const transactionProductRepository =
-        manager.getRepository(TransactionProduct);
-      const productRepository = manager.getRepository(Product);
+    const transactionProducts =
+      await this.transactionProductRepository.findByTransactionId(transaction.id);
 
-      const transactionProducts = await transactionProductRepository.find({
-        where: { transaction: { id: transaction.id } },
-        relations: ['product'],
-      });
+    for (const item of transactionProducts) {
+      const product = await this.productRepository.findById(item.product.id);
 
-      for (const item of transactionProducts) {
-        const product = await productRepository.findOneBy({
-          id: item.product.id,
-        });
-
-        if (!product) {
-          throw new NotFoundException(
-            `Product with ID ${item.product.id} not found`,
-          );
-        }
-
-        if (product.stock < item.quantity) {
-          throw new ConflictException(
-            `Not enough stock for product ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}`,
-          );
-        }
-
-        await productRepository.update(
-          { id: product.id },
-          { stock: product.stock - item.quantity },
+      if (!product) {
+        throw new NotFoundException(
+          `Product with ID ${item.product.id} not found`,
         );
       }
-    });
+
+      if (product.stock < item.quantity) {
+        throw new ConflictException(
+          `Not enough stock for product ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}`,
+        );
+      }
+
+      await this.productRepository.updateStock(
+        product.id,
+        product.stock - item.quantity,
+      );
+    }
   }
 }
