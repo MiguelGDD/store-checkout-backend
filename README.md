@@ -96,36 +96,74 @@ Run the container:
 docker run --rm -p 3000:3000 --env-file .env store-checkout-backend
 ```
 
-## Fly.io
+## DigitalOcean VPS
 
-The repository includes a `fly.toml` file and a Dockerfile ready for Fly.io.
+This project can run on a single DigitalOcean Droplet with Docker Compose.
 
-The app is configured to listen on port `3000` and bind to `0.0.0.0`, which is required for Fly's proxy to reach it.
+Recommended layout:
 
-1. Install `flyctl` and authenticate with `fly auth login`.
-2. Create or select the Fly app, then set the runtime secrets:
+- `api` container for NestJS
+- `db` container for PostgreSQL
+- public traffic on port `80`
+- PostgreSQL exposed only on `127.0.0.1:5432`
 
-```bash
-fly secrets set \
-  DB_HOST=... \
-  DB_PORT=5432 \
-  DB_USERNAME=... \
-  DB_PASSWORD=... \
-  DB_NAME=... \
-  API_KEY=... \
-  PAYMENT_API_URL=... \
-  PAYMENT_PUBLIC_KEY=... \
-  PAYMENT_SECRET_KEY=... \
-  PAYMENT_INTEGRITY_SECRET=...
-```
+1. Create the Droplet and SSH into it.
+2. Install Docker and Docker Compose.
+3. Clone this repository on the server.
+4. Create a `.env` file in the repository root with production values.
 
-3. Deploy the app:
+Example values:
 
 ```bash
-fly deploy
+PORT=3000
+NODE_ENV=production
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=change-me
+DB_NAME=store_checkout
+API_KEY=change-me
+PAYMENT_API_URL=change-me
+PAYMENT_PUBLIC_KEY=change-me
+PAYMENT_SECRET_KEY=change-me
+PAYMENT_INTEGRITY_SECRET=change-me
 ```
 
-If you need to run migrations against the deployed database, do it from an environment that has the TypeORM CLI dependencies available and the same database variables configured.
+5. Start the database:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d db
+```
+
+6. Run migrations from a temporary Node container:
+
+```bash
+docker run --rm --network host -v "$PWD":/app -w /app --env-file .env node:20-alpine sh -c "npm ci && npm run migration:run"
+```
+
+7. Load the seed data once:
+
+```bash
+docker run --rm --network host -v "$PWD":/app -w /app --env-file .env node:20-alpine sh -c "npm ci && npm run seed"
+```
+
+8. Start the API:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d api
+```
+
+9. Verify the app:
+
+```bash
+curl http://165.22.180.227/health
+```
+
+Notes:
+
+- Do not expose port `5432` to the public internet.
+- Run the seed only once on a fresh database because it truncates the tables.
+- If you add a domain later, you can put Nginx or Caddy in front of the API for TLS.
 
 ## Database
 
