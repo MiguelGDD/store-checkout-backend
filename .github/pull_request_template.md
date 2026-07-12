@@ -1,36 +1,40 @@
 <!--
-Fill out every section below before requesting review.
-Use "N/A" only when a section truly does not apply.
+Completa cada sección antes de pedir review.
+Usa "N/A" solo cuando realmente no aplique.
+No incluyas secretos, tokens, llaves privadas ni IPs fijas en la documentación.
 -->
 
 ## Descripcion
-- What problem does this PR solve?
-- What changed?
+- ¿Qué problema resuelve este PR?
+- ¿Qué cambió?
 
 ## External requirements
-- Any external services, credentials, manual steps, or assumptions?
+- ¿Depende de servicios externos, credenciales o pasos manuales?
+- ¿Hay supuestos de infraestructura, por ejemplo una IP pública, dominio o VPS?
 
 ## Change in env vars
-- New variables:
-- Updated variables:
-- Removed variables:
+- Variables nuevas:
+- Variables actualizadas:
+- Variables eliminadas:
+- ¿Se documentaron en `.env.example` y en `README.md`?
 
 ## Change in global settings
-- Any config changes in app behavior, middleware, auth, CORS, logging, etc.?
+- ¿Cambió el comportamiento global de la app, middleware, auth, CORS, logging o deployment?
+- ¿Se reemplazaron valores fijos por placeholders como `<PUBLIC_IP>`?
 
 ## DB migrations
-- Migration files added or modified:
-- Rollback notes:
+- Archivos de migración añadidos o modificados:
+- Notas de rollback:
 
 ## Data migrations
-- Seed, backfill, or one-time data scripts:
-- Data impact:
+- Seeds, backfills o scripts de carga inicial:
+- Impacto sobre datos existentes:
 
 ## Changes in dependencies
-- Added:
-- Updated:
-- Removed:
-- Why:
+- Añadidas:
+- Actualizadas:
+- Eliminadas:
+- ¿Por qué?
 
 ## Affected components
 - Controllers:
@@ -41,14 +45,14 @@ Use "N/A" only when a section truly does not apply.
 - CI/CD:
 
 ## Security concerns
-- Secrets handling:
-- Validation / authorization:
-- Sensitive data exposure:
-- Other risks:
+- Manejo de secretos:
+- Validación / autorización:
+- Exposición de datos sensibles:
+- Riesgos adicionales:
 
-## Impact analysis
-- Functional impact:
-- Operational impact:
-- Performance impact:
-- User impact:
-- Rollout / rollback plan:
+## Impact analisis
+- Impacto funcional:
+- Impacto operativo:
+- Impacto en performance:
+- Impacto para el usuario:
+- Plan de despliegue y rollback:
