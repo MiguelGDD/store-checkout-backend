@@ -156,7 +156,7 @@ docker compose -f docker-compose.prod.yml up -d api
 9. Verify the app:
 
 ```bash
-curl http://165.22.180.227/health
+curl http://<PUBLIC_IP>/health
 ```
 
 Notes:
