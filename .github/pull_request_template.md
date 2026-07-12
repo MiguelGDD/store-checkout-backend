@@ -1,40 +1,36 @@
 <!--
-Completa cada sección antes de pedir review.
-Usa "N/A" solo cuando realmente no aplique.
-No incluyas secretos, tokens, llaves privadas ni IPs fijas en la documentación.
+Fill out every section below before requesting review.
+Use "N/A" only when a section truly does not apply.
 -->
 
 ## Descripcion
-- ¿Qué problema resuelve este PR?
-- ¿Qué cambió?
+- What problem does this PR solve?
+- What changed?
 
 ## External requirements
-- ¿Depende de servicios externos, credenciales o pasos manuales?
-- ¿Hay supuestos de infraestructura, por ejemplo una IP pública, dominio o VPS?
+- Any external services, credentials, manual steps, or assumptions?
 
 ## Change in env vars
-- Variables nuevas:
-- Variables actualizadas:
-- Variables eliminadas:
-- ¿Se documentaron en `.env.example` y en `README.md`?
+- New variables:
+- Updated variables:
+- Removed variables:
 
 ## Change in global settings
-- ¿Cambió el comportamiento global de la app, middleware, auth, CORS, logging o deployment?
-- ¿Se reemplazaron valores fijos por placeholders como `<PUBLIC_IP>`?
+- Any config changes in app behavior, middleware, auth, CORS, logging, etc.?
 
 ## DB migrations
-- Archivos de migración añadidos o modificados:
-- Notas de rollback:
+- Migration files added or modified:
+- Rollback notes:
 
 ## Data migrations
-- Seeds, backfills o scripts de carga inicial:
-- Impacto sobre datos existentes:
+- Seed, backfill, or one-time data scripts:
+- Data impact:
 
 ## Changes in dependencies
-- Añadidas:
-- Actualizadas:
-- Eliminadas:
-- ¿Por qué?
+- Added:
+- Updated:
+- Removed:
+- Why:
 
 ## Affected components
 - Controllers:
@@ -45,14 +41,14 @@ No incluyas secretos, tokens, llaves privadas ni IPs fijas en la documentación.
 - CI/CD:
 
 ## Security concerns
-- Manejo de secretos:
-- Validación / autorización:
-- Exposición de datos sensibles:
-- Riesgos adicionales:
+- Secrets handling:
+- Validation / authorization:
+- Sensitive data exposure:
+- Other risks:
 
-## Impact analisis
-- Impacto funcional:
-- Impacto operativo:
-- Impacto en performance:
-- Impacto para el usuario:
-- Plan de despliegue y rollback:
+## Impact analysis
+- Functional impact:
+- Operational impact:
+- Performance impact:
+- User impact:
+- Rollout / rollback plan:
