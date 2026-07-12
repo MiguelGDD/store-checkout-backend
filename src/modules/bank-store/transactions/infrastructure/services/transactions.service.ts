@@ -30,9 +30,7 @@ import {
   PurchasedProductInput,
 } from '../../transactions.types';
 import { PaymentGatewayPort } from '../../../shared/domain/ports/payment-gateway.port';
-import {
-  CUSTOMER_REPOSITORY,
-} from '../../../shared/domain/ports/customer.repository.port';
+import { CUSTOMER_REPOSITORY } from '../../../shared/domain/ports/customer.repository.port';
 import { PAYMENT_GATEWAY } from '../../../shared/domain/ports/payment-gateway.port';
 
 @Injectable()
@@ -69,13 +67,14 @@ export class TransactionsService {
       customerId: customer.id,
     });
 
-    const transactionProducts = selectedProducts.map((item) =>
-      ({
-        transaction: pendingTransaction,
-        product: item.product,
-        quantity: item.quantity,
-        unitAmount: item.product.price,
-      }) as TransactionProduct,
+    const transactionProducts = selectedProducts.map(
+      (item) =>
+        ({
+          transaction: pendingTransaction,
+          product: item.product,
+          quantity: item.quantity,
+          unitAmount: item.product.price,
+        }) as TransactionProduct,
     );
 
     await this.transactionProductRepository.saveMany(transactionProducts);

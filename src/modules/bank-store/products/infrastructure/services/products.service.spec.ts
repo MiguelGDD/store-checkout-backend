@@ -66,9 +66,9 @@ describe('ProductsService', () => {
 
     await service.discountPurchasedProducts(transaction);
 
-    expect(transactionProductRepository.findByTransactionId).toHaveBeenCalledWith(
-      10,
-    );
+    expect(
+      transactionProductRepository.findByTransactionId,
+    ).toHaveBeenCalledWith(10);
     expect(productRepository.findById).toHaveBeenCalledWith(1);
     expect(productRepository.updateStock).toHaveBeenCalledWith(1, 3);
   });

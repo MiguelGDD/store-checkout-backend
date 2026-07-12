@@ -5,19 +5,13 @@ import { Delivery } from '../../../../core/database/domain/entities/delivery.ent
 import { Product } from '../../../../core/database/domain/entities/product.entity';
 import { TransactionProduct } from '../../../../core/database/domain/entities/transaction-product.entity';
 import { Transaction } from '../../../../core/database/domain/entities/transaction.entity';
-import {
-  CUSTOMER_REPOSITORY,
-} from '../../domain/ports/customer.repository.port';
-import {
-  DELIVERY_REPOSITORY,
-} from '../../domain/ports/delivery.repository.port';
+import { CUSTOMER_REPOSITORY } from '../../domain/ports/customer.repository.port';
+import { DELIVERY_REPOSITORY } from '../../domain/ports/delivery.repository.port';
 import {
   PRODUCT_REPOSITORY,
   TRANSACTION_PRODUCT_REPOSITORY,
 } from '../../domain/ports/product.repository.port';
-import {
-  TRANSACTION_REPOSITORY,
-} from '../../domain/ports/transaction.repository.port';
+import { TRANSACTION_REPOSITORY } from '../../domain/ports/transaction.repository.port';
 import { TypeOrmCustomerRepository } from './typeorm-customer.repository';
 import { TypeOrmDeliveryRepository } from './typeorm-delivery.repository';
 import { TypeOrmProductRepository } from './typeorm-product.repository';

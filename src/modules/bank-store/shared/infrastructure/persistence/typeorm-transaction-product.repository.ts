@@ -5,9 +5,7 @@ import { TransactionProduct } from '../../../../core/database/domain/entities/tr
 import { TransactionProductRepositoryPort } from '../../domain/ports/product.repository.port';
 
 @Injectable()
-export class TypeOrmTransactionProductRepository
-  implements TransactionProductRepositoryPort
-{
+export class TypeOrmTransactionProductRepository implements TransactionProductRepositoryPort {
   constructor(
     @InjectRepository(TransactionProduct)
     private readonly repository: Repository<TransactionProduct>,
