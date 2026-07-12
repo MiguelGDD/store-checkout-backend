@@ -3,14 +3,21 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { Repository } from 'typeorm';
 import { Customer } from '../../../../core/database/domain/entities/customer.entity';
 import { Product } from '../../../../core/database/domain/entities/product.entity';
 import { Transaction } from '../../../../core/database/domain/entities/transaction.entity';
 import { TransactionStatus } from '../../../../core/database/domain/enums';
 import { DeliveriesService } from '../../../deliveries/infrastructure/services/deliveries.service';
 import { ProductsService } from '../../../products/infrastructure/services/products.service';
-import { PaymentGatewayService } from './payment-gateway.service';
+import { CustomerRepositoryPort } from '../../../shared/domain/ports/customer.repository.port';
+import {
+  ProductRepositoryPort,
+  TransactionProductRepositoryPort,
+} from '../../../shared/domain/ports/product.repository.port';
+import { PaymentGatewayPort } from '../../../shared/domain/ports/payment-gateway.port';
+import {
+  TransactionRepositoryPort,
+} from '../../../shared/domain/ports/transaction.repository.port';
 import { TransactionsService } from './transactions.service';
 
 describe('TransactionsService', () => {
@@ -21,30 +28,12 @@ describe('TransactionsService', () => {
     ) => TransactionStatus;
     findOneOrFail: (id: number) => Promise<Transaction>;
   };
-  type ManagerMock = {
-    create: jest.Mock;
-    save: jest.Mock;
-  };
-  let transactionRepository: {
-    find: jest.Mock;
-    findOne: jest.Mock;
-    update: jest.Mock;
-    manager: {
-      transaction: jest.Mock;
-    };
-  };
-  let customerRepository: {
-    findOneBy: jest.Mock;
-  };
-  let productRepository: {
-    find: jest.Mock;
-  };
-  let paymentGatewayService: {
-    getAcceptanceTokens: jest.Mock;
-    tokenizeCard: jest.Mock;
-    createTransaction: jest.Mock;
-    waitForFinalTransaction: jest.Mock;
-  };
+
+  let transactionRepository: jest.Mocked<TransactionRepositoryPort>;
+  let customerRepository: jest.Mocked<CustomerRepositoryPort>;
+  let productRepository: jest.Mocked<ProductRepositoryPort>;
+  let transactionProductRepository: jest.Mocked<TransactionProductRepositoryPort>;
+  let paymentGatewayService: jest.Mocked<PaymentGatewayPort>;
   let productsService: {
     discountPurchasedProducts: jest.Mock;
   };
@@ -55,6 +44,7 @@ describe('TransactionsService', () => {
   const customer = {
     id: 1,
     email: 'juan.perez@example.com',
+    address: 'Cra 1 # 2-3',
   } as Customer;
 
   const products = [
@@ -72,45 +62,52 @@ describe('TransactionsService', () => {
     },
   ] as Product[];
 
-  const manager: ManagerMock = {
-    create: jest.fn((_entity: unknown, payload: unknown) => payload),
-    save: jest.fn(async (entity: unknown, payload: unknown) => {
-      if (entity === Transaction) {
-        return {
-          ...(payload as Record<string, unknown>),
-          id: 10,
-        } as Transaction;
-      }
-
-      return payload;
-    }),
-  };
+  const pendingTransaction = {
+    id: 10,
+    reference: 'reference-1',
+    status: TransactionStatus.PENDING,
+    totalAmount: 2600,
+    baseFee: 2500,
+    deliveryFee: 100,
+    bankTransactionId: null,
+    customer,
+    transactionProducts: [],
+    delivery: undefined as unknown as Transaction['delivery'],
+    createAt: new Date(),
+    updateAt: new Date(),
+  } as Transaction;
 
   beforeEach(() => {
     transactionRepository = {
-      find: jest.fn(),
-      findOne: jest.fn(),
-      update: jest.fn(),
-      manager: {
-        transaction: jest.fn(
-          async (callback: (manager: ManagerMock) => Promise<unknown>) =>
-            callback(manager),
-        ),
-      },
+      findAll: jest.fn(),
+      findById: jest.fn(),
+      findByReference: jest.fn(),
+      findByReferenceWithCustomer: jest.fn(),
+      createPending: jest.fn(),
+      updateStatus: jest.fn(),
     };
 
     customerRepository = {
-      findOneBy: jest.fn(),
+      findById: jest.fn(),
     };
 
     productRepository = {
-      find: jest.fn(),
+      findAll: jest.fn(),
+      findById: jest.fn(),
+      findByIds: jest.fn(),
+      updateStock: jest.fn(),
+    };
+
+    transactionProductRepository = {
+      saveMany: jest.fn(),
+      findByTransactionId: jest.fn(),
     };
 
     paymentGatewayService = {
       getAcceptanceTokens: jest.fn(),
       tokenizeCard: jest.fn(),
       createTransaction: jest.fn(),
+      getTransaction: jest.fn(),
       waitForFinalTransaction: jest.fn(),
     };
 
@@ -122,14 +119,12 @@ describe('TransactionsService', () => {
       assignToTransaction: jest.fn(),
     };
 
-    manager.create.mockClear();
-    manager.save.mockClear();
-
     service = new TransactionsService(
-      transactionRepository as unknown as Repository<Transaction>,
-      customerRepository as unknown as Repository<Customer>,
-      productRepository as unknown as Repository<Product>,
-      paymentGatewayService as unknown as PaymentGatewayService,
+      transactionRepository,
+      customerRepository,
+      productRepository,
+      transactionProductRepository,
+      paymentGatewayService,
       productsService as unknown as ProductsService,
       deliveriesService as unknown as DeliveriesService,
     );
@@ -137,56 +132,31 @@ describe('TransactionsService', () => {
 
   it('should return all transactions ordered by creation date', async () => {
     const transactions = [{ id: 1 }] as Transaction[];
-    transactionRepository.find.mockResolvedValue(transactions);
+    transactionRepository.findAll.mockResolvedValue(transactions);
 
     await expect(service.findAll()).resolves.toEqual(transactions);
-
-    expect(transactionRepository.find).toHaveBeenCalledWith({
-      order: { createAt: 'DESC' },
-      relations: {
-        customer: true,
-        delivery: true,
-        transactionProducts: {
-          product: true,
-        },
-      },
-    });
+    expect(transactionRepository.findAll).toHaveBeenCalledTimes(1);
   });
 
   it('should return one transaction by id', async () => {
     const transaction = { id: 1 } as Transaction;
-    transactionRepository.findOne.mockResolvedValue(transaction);
+    transactionRepository.findById.mockResolvedValue(transaction);
 
     await expect(service.findOne(1)).resolves.toEqual(transaction);
-
-    expect(transactionRepository.findOne).toHaveBeenCalledWith({
-      where: { id: 1 },
-      relations: {
-        customer: true,
-        delivery: true,
-        transactionProducts: {
-          product: true,
-        },
-      },
-    });
+    expect(transactionRepository.findById).toHaveBeenCalledWith(1);
   });
 
   it('should complete a checkout when the payment is approved', async () => {
     const finalTransaction = {
-      id: 10,
-      reference: 'reference-1',
+      ...pendingTransaction,
       status: TransactionStatus.APPROVED,
       bankTransactionId: 'provider-transaction-id',
-      totalAmount: 2600,
-      baseFee: 2500,
-      deliveryFee: 100,
-      customer,
-      transactionProducts: [],
-      delivery: null,
-    } as unknown as Transaction;
+    } as Transaction;
 
-    customerRepository.findOneBy.mockResolvedValue(customer);
-    productRepository.find.mockResolvedValue(products);
+    customerRepository.findById.mockResolvedValue(customer);
+    productRepository.findByIds.mockResolvedValue(products);
+    transactionRepository.createPending.mockResolvedValue(pendingTransaction);
+    transactionProductRepository.saveMany.mockResolvedValue([]);
     paymentGatewayService.getAcceptanceTokens.mockResolvedValue({
       acceptanceToken: 'acceptance-token',
       personalAuthToken: 'personal-token',
@@ -198,19 +168,19 @@ describe('TransactionsService', () => {
       amount_in_cents: 260000,
       currency: 'COP',
       status: 'PENDING',
-    });
+    } as never);
     paymentGatewayService.waitForFinalTransaction.mockResolvedValue({
       id: 'provider-transaction-id',
       reference: 'reference-1',
       amount_in_cents: 260000,
       currency: 'COP',
       status: 'APPROVED',
-    });
-    transactionRepository.findOne.mockResolvedValue(finalTransaction);
+    } as never);
+    transactionRepository.findById.mockResolvedValue(finalTransaction);
     deliveriesService.assignToTransaction.mockResolvedValue({
       id: 20,
       status: 'ASSIGNED',
-    });
+    } as never);
 
     await expect(
       service.checkout({
@@ -240,10 +210,27 @@ describe('TransactionsService', () => {
       }),
     ).resolves.toEqual(finalTransaction);
 
-    expect(customerRepository.findOneBy).toHaveBeenCalledWith({ id: 1 });
-    expect(productRepository.find).toHaveBeenCalledWith({
-      where: { id: expect.anything() },
+    expect(customerRepository.findById).toHaveBeenCalledWith(1);
+    expect(productRepository.findByIds).toHaveBeenCalledWith([1, 2]);
+    expect(transactionRepository.createPending).toHaveBeenCalledWith({
+      reference: expect.any(String),
+      totalAmount: 2600,
+      baseFee: 2500,
+      deliveryFee: 100,
+      customerId: 1,
     });
+    expect(transactionProductRepository.saveMany).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          quantity: 2,
+          unitAmount: 1000,
+        }),
+        expect.objectContaining({
+          quantity: 1,
+          unitAmount: 500,
+        }),
+      ]),
+    );
     expect(paymentGatewayService.getAcceptanceTokens).toHaveBeenCalledTimes(1);
     expect(paymentGatewayService.tokenizeCard).toHaveBeenCalledWith({
       number: '4242424242424242',
@@ -264,12 +251,10 @@ describe('TransactionsService', () => {
     expect(paymentGatewayService.waitForFinalTransaction).toHaveBeenCalledWith(
       'provider-transaction-id',
     );
-    expect(transactionRepository.update).toHaveBeenCalledWith(
-      { id: 10 },
-      {
-        status: TransactionStatus.APPROVED,
-        bankTransactionId: 'provider-transaction-id',
-      },
+    expect(transactionRepository.updateStatus).toHaveBeenCalledWith(
+      10,
+      TransactionStatus.APPROVED,
+      'provider-transaction-id',
     );
     expect(productsService.discountPurchasedProducts).toHaveBeenCalledWith(
       expect.objectContaining({ id: 10 }),
@@ -279,20 +264,15 @@ describe('TransactionsService', () => {
 
   it('should mark the transaction as declined when the provider declines it', async () => {
     const declinedTransaction = {
-      id: 10,
-      reference: 'reference-2',
+      ...pendingTransaction,
       status: TransactionStatus.DECLINED,
       bankTransactionId: 'provider-transaction-id-2',
-      totalAmount: 1500,
-      baseFee: 1500,
-      deliveryFee: 0,
-      customer,
-      transactionProducts: [],
-      delivery: null,
-    } as unknown as Transaction;
+    } as Transaction;
 
-    customerRepository.findOneBy.mockResolvedValue(customer);
-    productRepository.find.mockResolvedValue([products[0]]);
+    customerRepository.findById.mockResolvedValue(customer);
+    productRepository.findByIds.mockResolvedValue([products[0]]);
+    transactionRepository.createPending.mockResolvedValue(pendingTransaction);
+    transactionProductRepository.saveMany.mockResolvedValue([]);
     paymentGatewayService.getAcceptanceTokens.mockResolvedValue({
       acceptanceToken: 'acceptance-token',
       personalAuthToken: 'personal-token',
@@ -304,8 +284,8 @@ describe('TransactionsService', () => {
       amount_in_cents: 150000,
       currency: 'COP',
       status: 'DECLINED',
-    });
-    transactionRepository.findOne.mockResolvedValue(declinedTransaction);
+    } as never);
+    transactionRepository.findById.mockResolvedValue(declinedTransaction);
 
     await expect(
       service.checkout({
@@ -326,15 +306,11 @@ describe('TransactionsService', () => {
       }),
     ).resolves.toEqual(declinedTransaction);
 
-    expect(
-      paymentGatewayService.waitForFinalTransaction,
-    ).not.toHaveBeenCalled();
-    expect(transactionRepository.update).toHaveBeenCalledWith(
-      { id: 10 },
-      {
-        status: TransactionStatus.DECLINED,
-        bankTransactionId: 'provider-transaction-id-2',
-      },
+    expect(paymentGatewayService.waitForFinalTransaction).not.toHaveBeenCalled();
+    expect(transactionRepository.updateStatus).toHaveBeenCalledWith(
+      10,
+      TransactionStatus.DECLINED,
+      'provider-transaction-id-2',
     );
     expect(productsService.discountPurchasedProducts).not.toHaveBeenCalled();
     expect(deliveriesService.assignToTransaction).not.toHaveBeenCalled();
@@ -342,20 +318,15 @@ describe('TransactionsService', () => {
 
   it('should map a voided provider transaction', async () => {
     const voidedTransaction = {
-      id: 10,
-      reference: 'reference-3',
+      ...pendingTransaction,
       status: TransactionStatus.VOIDED,
       bankTransactionId: 'provider-transaction-id-3',
-      totalAmount: 1500,
-      baseFee: 1500,
-      deliveryFee: 0,
-      customer,
-      transactionProducts: [],
-      delivery: null,
-    } as unknown as Transaction;
+    } as Transaction;
 
-    customerRepository.findOneBy.mockResolvedValue(customer);
-    productRepository.find.mockResolvedValue([products[0]]);
+    customerRepository.findById.mockResolvedValue(customer);
+    productRepository.findByIds.mockResolvedValue([products[0]]);
+    transactionRepository.createPending.mockResolvedValue(pendingTransaction);
+    transactionProductRepository.saveMany.mockResolvedValue([]);
     paymentGatewayService.getAcceptanceTokens.mockResolvedValue({
       acceptanceToken: 'acceptance-token',
       personalAuthToken: 'personal-token',
@@ -367,15 +338,15 @@ describe('TransactionsService', () => {
       amount_in_cents: 150000,
       currency: 'COP',
       status: 'PENDING',
-    });
+    } as never);
     paymentGatewayService.waitForFinalTransaction.mockResolvedValue({
       id: 'provider-transaction-id-3',
       reference: 'reference-3',
       amount_in_cents: 150000,
       currency: 'COP',
       status: 'VOIDED',
-    });
-    transactionRepository.findOne.mockResolvedValue(voidedTransaction);
+    } as never);
+    transactionRepository.findById.mockResolvedValue(voidedTransaction);
 
     await expect(
       service.checkout({
@@ -396,20 +367,20 @@ describe('TransactionsService', () => {
       }),
     ).resolves.toEqual(voidedTransaction);
 
-    expect(transactionRepository.update).toHaveBeenCalledWith(
-      { id: 10 },
-      {
-        status: TransactionStatus.VOIDED,
-        bankTransactionId: 'provider-transaction-id-3',
-      },
+    expect(transactionRepository.updateStatus).toHaveBeenCalledWith(
+      10,
+      TransactionStatus.VOIDED,
+      'provider-transaction-id-3',
     );
     expect(productsService.discountPurchasedProducts).not.toHaveBeenCalled();
     expect(deliveriesService.assignToTransaction).not.toHaveBeenCalled();
   });
 
   it('should mark the transaction as error when the provider call fails', async () => {
-    customerRepository.findOneBy.mockResolvedValue(customer);
-    productRepository.find.mockResolvedValue([products[0]]);
+    customerRepository.findById.mockResolvedValue(customer);
+    productRepository.findByIds.mockResolvedValue([products[0]]);
+    transactionRepository.createPending.mockResolvedValue(pendingTransaction);
+    transactionProductRepository.saveMany.mockResolvedValue([]);
     paymentGatewayService.getAcceptanceTokens.mockResolvedValue({
       acceptanceToken: 'acceptance-token',
       personalAuthToken: 'personal-token',
@@ -418,7 +389,6 @@ describe('TransactionsService', () => {
     paymentGatewayService.createTransaction.mockRejectedValue(
       new BadGatewayException('provider error'),
     );
-    transactionRepository.findOne.mockResolvedValue(null);
 
     await expect(
       service.checkout({
@@ -439,18 +409,16 @@ describe('TransactionsService', () => {
       }),
     ).rejects.toThrow(BadGatewayException);
 
-    expect(transactionRepository.update).toHaveBeenCalledWith(
-      { id: 10 },
-      {
-        status: TransactionStatus.ERROR,
-      },
+    expect(transactionRepository.updateStatus).toHaveBeenCalledWith(
+      10,
+      TransactionStatus.ERROR,
     );
     expect(productsService.discountPurchasedProducts).not.toHaveBeenCalled();
     expect(deliveriesService.assignToTransaction).not.toHaveBeenCalled();
   });
 
   it('should throw when customer does not exist', async () => {
-    customerRepository.findOneBy.mockResolvedValue(null);
+    customerRepository.findById.mockResolvedValue(null);
 
     await expect(
       service.checkout({
@@ -475,8 +443,8 @@ describe('TransactionsService', () => {
   });
 
   it('should throw when a product is missing', async () => {
-    customerRepository.findOneBy.mockResolvedValue(customer);
-    productRepository.find.mockResolvedValue([products[0]]);
+    customerRepository.findById.mockResolvedValue(customer);
+    productRepository.findByIds.mockResolvedValue([products[0]]);
 
     await expect(
       service.checkout({
@@ -505,8 +473,8 @@ describe('TransactionsService', () => {
   });
 
   it('should throw when loaded products are inconsistent', async () => {
-    customerRepository.findOneBy.mockResolvedValue(customer);
-    productRepository.find.mockResolvedValue([
+    customerRepository.findById.mockResolvedValue(customer);
+    productRepository.findByIds.mockResolvedValue([
       {
         ...products[0],
       },
@@ -542,8 +510,8 @@ describe('TransactionsService', () => {
   });
 
   it('should throw when there is not enough stock', async () => {
-    customerRepository.findOneBy.mockResolvedValue(customer);
-    productRepository.find.mockResolvedValue([
+    customerRepository.findById.mockResolvedValue(customer);
+    productRepository.findByIds.mockResolvedValue([
       {
         ...products[0],
         stock: 1,
@@ -573,8 +541,10 @@ describe('TransactionsService', () => {
   });
 
   it('should throw when the transaction cannot be reloaded after approval', async () => {
-    customerRepository.findOneBy.mockResolvedValue(customer);
-    productRepository.find.mockResolvedValue([products[0]]);
+    customerRepository.findById.mockResolvedValue(customer);
+    productRepository.findByIds.mockResolvedValue([products[0]]);
+    transactionRepository.createPending.mockResolvedValue(pendingTransaction);
+    transactionProductRepository.saveMany.mockResolvedValue([]);
     paymentGatewayService.getAcceptanceTokens.mockResolvedValue({
       acceptanceToken: 'acceptance-token',
       personalAuthToken: 'personal-token',
@@ -586,12 +556,19 @@ describe('TransactionsService', () => {
       amount_in_cents: 100000,
       currency: 'COP',
       status: 'APPROVED',
-    });
-    transactionRepository.findOne.mockResolvedValueOnce(null);
+    } as never);
+    paymentGatewayService.waitForFinalTransaction.mockResolvedValue({
+      id: 'provider-transaction-id',
+      reference: 'reference-1',
+      amount_in_cents: 100000,
+      currency: 'COP',
+      status: 'APPROVED',
+    } as never);
+    transactionRepository.findById.mockResolvedValueOnce(null);
     deliveriesService.assignToTransaction.mockResolvedValue({
       id: 20,
       status: 'ASSIGNED',
-    });
+    } as never);
 
     await expect(
       service.checkout({
@@ -628,7 +605,7 @@ describe('TransactionsService', () => {
   });
 
   it('should throw when a transaction cannot be found after processing', async () => {
-    transactionRepository.findOne.mockResolvedValue(null);
+    transactionRepository.findById.mockResolvedValue(null);
 
     const internalService = service as unknown as TransactionsServiceInternals;
 

@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { Product } from '../../core/database/domain/entities/product.entity';
-import { TransactionProduct } from '../../core/database/domain/entities/transaction-product.entity';
+import { BankStorePersistenceModule } from '../shared/infrastructure/persistence/bank-store-persistence.module';
 import { ProductsController } from './infrastructure/controllers/products.controller';
 import { ProductsService } from './infrastructure/services/products.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, TransactionProduct])],
+  imports: [BankStorePersistenceModule],
   controllers: [ProductsController],
   providers: [ProductsService],
   exports: [ProductsService],

@@ -1,67 +1,43 @@
 import {
+  Inject,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { Delivery } from '../../../../core/database/domain/entities/delivery.entity';
 import { Transaction } from '../../../../core/database/domain/entities/transaction.entity';
 import {
   DeliveryStatus,
   TransactionStatus,
 } from '../../../../core/database/domain/enums';
+import {
+  DeliveryRepositoryPort,
+  DELIVERY_REPOSITORY,
+} from '../../../shared/domain/ports/delivery.repository.port';
+import {
+  TransactionRepositoryPort,
+  TRANSACTION_REPOSITORY,
+} from '../../../shared/domain/ports/transaction.repository.port';
 
 @Injectable()
 export class DeliveriesService {
   constructor(
-    @InjectRepository(Delivery)
-    private readonly deliveryRepository: Repository<Delivery>,
-    @InjectRepository(Transaction)
-    private readonly transactionRepository: Repository<Transaction>,
+    @Inject(DELIVERY_REPOSITORY)
+    private readonly deliveryRepository: DeliveryRepositoryPort,
+    @Inject(TRANSACTION_REPOSITORY)
+    private readonly transactionRepository: TransactionRepositoryPort,
   ) {}
 
   async findAll(): Promise<Delivery[]> {
-    return this.deliveryRepository.find({
-      order: { createAt: 'DESC' },
-      relations: {
-        customer: true,
-        transaction: {
-          customer: true,
-          transactionProducts: {
-            product: true,
-          },
-        },
-      },
-    });
+    return this.deliveryRepository.findAll();
   }
 
   async findOne(id: number): Promise<Delivery | null> {
-    return this.deliveryRepository.findOne({
-      where: { id },
-      relations: {
-        customer: true,
-        transaction: {
-          customer: true,
-          transactionProducts: {
-            product: true,
-          },
-        },
-      },
-    });
+    return this.deliveryRepository.findById(id);
   }
 
   async assignToTransaction(transactionId: number): Promise<Delivery> {
-    const transaction = await this.transactionRepository.findOne({
-      where: { id: transactionId },
-      relations: {
-        customer: true,
-        delivery: true,
-        transactionProducts: {
-          product: true,
-        },
-      },
-    });
+    const transaction = await this.transactionRepository.findById(transactionId);
 
     if (!transaction) {
       throw new NotFoundException(
@@ -79,14 +55,12 @@ export class DeliveriesService {
       );
     }
 
-    const delivery = await this.deliveryRepository.save(
-      this.deliveryRepository.create({
-        address: transaction.customer.address,
-        status: DeliveryStatus.ASSIGNED,
-        customer: transaction.customer,
-        transaction,
-      }),
-    );
+    const delivery = await this.deliveryRepository.createDelivery({
+      address: transaction.customer.address,
+      status: DeliveryStatus.ASSIGNED,
+      customerId: transaction.customer.id,
+      transactionId: transaction.id,
+    });
 
     const savedDelivery = await this.findOne(delivery.id);
 

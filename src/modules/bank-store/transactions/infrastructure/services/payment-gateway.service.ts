@@ -3,6 +3,7 @@ import { BadGatewayException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { firstValueFrom } from 'rxjs';
+import { PaymentGatewayPort } from '../../../shared/domain/ports/payment-gateway.port';
 import type {
   AcceptanceTokensInput,
   CardPaymentInput,
@@ -33,7 +34,7 @@ interface TransactionResponse {
 }
 
 @Injectable()
-export class PaymentGatewayService {
+export class PaymentGatewayService implements PaymentGatewayPort {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
