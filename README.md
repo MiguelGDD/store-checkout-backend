@@ -48,12 +48,101 @@ Copy [`.env.example`](./.env.example) to `.env` and set the values below.
 
 ## Local setup
 
+You can run the backend locally with either a local PostgreSQL instance or a
+PostgreSQL container.
+
+### Option 1: PostgreSQL installed locally
+
+1. Install dependencies.
+
 ```bash
 npm install
+```
+
+2. Copy the example environment file.
+
+PowerShell:
+
+```powershell
 Copy-Item .env.example .env
+```
+
+macOS/Linux:
+
+```bash
+cp .env.example .env
+```
+
+3. Make sure `.env` points to your local database. The defaults in
+`.env.example` already work if PostgreSQL is running on `localhost:5432`.
+
+4. Create the schema.
+
+```bash
 npm run migration:run
+```
+
+5. Load the initial data.
+
+```bash
 npm run seed
+```
+
+6. Start the API in watch mode.
+
+```bash
 npm run start:dev
+```
+
+7. Verify the app.
+
+```bash
+curl http://localhost:3000/health
+```
+
+### Option 2: PostgreSQL with Docker
+
+If you do not have PostgreSQL installed locally, you can use the database
+container from the production compose file.
+
+1. Start only the database container.
+
+```bash
+docker compose -f docker-compose.prod.yml up -d db
+```
+
+2. Keep these values in `.env`.
+
+```bash
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=postgres
+DB_NAME=store_checkout
+```
+
+3. Run migrations.
+
+```bash
+npm run migration:run
+```
+
+4. Run the seed once.
+
+```bash
+npm run seed
+```
+
+5. Start the API.
+
+```bash
+npm run start:dev
+```
+
+6. Verify the app.
+
+```bash
+curl http://localhost:3000/health
 ```
 
 ## Available scripts
