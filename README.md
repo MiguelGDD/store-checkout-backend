@@ -97,44 +97,6 @@ Run the container:
 docker run --rm -p 3000:3000 --env-file .env store-checkout-backend
 ```
 
-## Fly.io
-
-The repository includes a `fly.toml` file and a Dockerfile ready for Fly.io.
-
-The app is configured to listen on port `3000` and bind to `0.0.0.0`, which is required for Fly's proxy to reach it.
-
-1. Create a Postgres cluster in Fly:
-
-```bash
-fly postgres create
-```
-
-2. Attach the database to the app so Fly sets `DATABASE_URL` automatically:
-
-```bash
-fly postgres attach <postgres-app-name> --app store-checkout-backend
-```
-
-3. Install `flyctl` and authenticate with `fly auth login`.
-4. Create or select the Fly app, then set the rest of the runtime secrets:
-
-```bash
-fly secrets set \
-  API_KEY=... \
-  PAYMENT_API_URL=... \
-  PAYMENT_PUBLIC_KEY=... \
-  PAYMENT_SECRET_KEY=... \
-  PAYMENT_INTEGRITY_SECRET=...
-```
-
-5. Deploy the app:
-
-```bash
-fly deploy
-```
-
-If you need to run migrations against the deployed database, run them from an environment that has the TypeORM CLI dependencies available and the same `DATABASE_URL` configured.
-
 ## Database
 
 - Run migrations with `npm run migration:run`
