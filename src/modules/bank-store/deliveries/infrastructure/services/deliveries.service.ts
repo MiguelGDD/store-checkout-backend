@@ -5,7 +5,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Delivery } from '../../../../core/database/domain/entities/delivery.entity';
-import { Transaction } from '../../../../core/database/domain/entities/transaction.entity';
 import {
   DeliveryStatus,
   TransactionStatus,
@@ -37,7 +36,8 @@ export class DeliveriesService {
   }
 
   async assignToTransaction(transactionId: number): Promise<Delivery> {
-    const transaction = await this.transactionRepository.findById(transactionId);
+    const transaction =
+      await this.transactionRepository.findById(transactionId);
 
     if (!transaction) {
       throw new NotFoundException(

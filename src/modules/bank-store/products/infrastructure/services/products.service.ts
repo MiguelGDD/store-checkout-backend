@@ -32,7 +32,9 @@ export class ProductsService {
 
   async discountPurchasedProducts(transaction: Transaction): Promise<void> {
     const transactionProducts =
-      await this.transactionProductRepository.findByTransactionId(transaction.id);
+      await this.transactionProductRepository.findByTransactionId(
+        transaction.id,
+      );
 
     for (const item of transactionProducts) {
       const product = await this.productRepository.findById(item.product.id);

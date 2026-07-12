@@ -15,9 +15,7 @@ import {
   TransactionProductRepositoryPort,
 } from '../../../shared/domain/ports/product.repository.port';
 import { PaymentGatewayPort } from '../../../shared/domain/ports/payment-gateway.port';
-import {
-  TransactionRepositoryPort,
-} from '../../../shared/domain/ports/transaction.repository.port';
+import { TransactionRepositoryPort } from '../../../shared/domain/ports/transaction.repository.port';
 import { TransactionsService } from './transactions.service';
 
 describe('TransactionsService', () => {
@@ -306,7 +304,9 @@ describe('TransactionsService', () => {
       }),
     ).resolves.toEqual(declinedTransaction);
 
-    expect(paymentGatewayService.waitForFinalTransaction).not.toHaveBeenCalled();
+    expect(
+      paymentGatewayService.waitForFinalTransaction,
+    ).not.toHaveBeenCalled();
     expect(transactionRepository.updateStatus).toHaveBeenCalledWith(
       10,
       TransactionStatus.DECLINED,

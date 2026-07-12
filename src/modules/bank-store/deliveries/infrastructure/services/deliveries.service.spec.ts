@@ -1,12 +1,8 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Delivery } from '../../../../core/database/domain/entities/delivery.entity';
 import { Transaction } from '../../../../core/database/domain/entities/transaction.entity';
-import {
-  DeliveryRepositoryPort,
-} from '../../../shared/domain/ports/delivery.repository.port';
-import {
-  TransactionRepositoryPort,
-} from '../../../shared/domain/ports/transaction.repository.port';
+import { DeliveryRepositoryPort } from '../../../shared/domain/ports/delivery.repository.port';
+import { TransactionRepositoryPort } from '../../../shared/domain/ports/transaction.repository.port';
 import {
   DeliveryStatus,
   TransactionStatus,
