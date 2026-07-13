@@ -46,6 +46,12 @@ Copy [`.env.example`](./.env.example) to `.env` and set the values below.
 | `PAYMENT_SECRET_KEY` | Secret payment key |
 | `PAYMENT_INTEGRITY_SECRET` | Integrity signature secret |
 
+All business endpoints require the `x-api-key` header. The only public
+exceptions are:
+
+- `GET /health`
+- Swagger at `/docs`
+
 ## Local setup
 
 You can run the backend locally with either a local PostgreSQL instance or a
@@ -93,6 +99,9 @@ npm run seed
 ```bash
 npm run start:dev
 ```
+
+Remember to send the `x-api-key` header with the value from `API_KEY` when
+calling the business endpoints.
 
 7. Verify the app.
 
