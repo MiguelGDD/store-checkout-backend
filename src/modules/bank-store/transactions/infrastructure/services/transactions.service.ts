@@ -260,9 +260,10 @@ export class TransactionsService {
         return TransactionStatus.DECLINED;
       case 'VOIDED':
         return TransactionStatus.VOIDED;
+      case 'PENDING':
+        return TransactionStatus.PENDING;
       case 'ERROR':
         return TransactionStatus.ERROR;
-      case 'PENDING':
       default:
         return TransactionStatus.ERROR;
     }
