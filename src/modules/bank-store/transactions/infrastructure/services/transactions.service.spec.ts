@@ -593,14 +593,14 @@ describe('TransactionsService', () => {
     expect(deliveriesService.assignToTransaction).toHaveBeenCalledWith(10);
   });
 
-  it('should map provider error and pending statuses to error', () => {
+  it('should map provider pending status to pending and errors to error', () => {
     const internalService = service as unknown as TransactionsServiceInternals;
 
     expect(internalService.mapProviderStatus('ERROR')).toBe(
       TransactionStatus.ERROR,
     );
     expect(internalService.mapProviderStatus('PENDING')).toBe(
-      TransactionStatus.ERROR,
+      TransactionStatus.PENDING,
     );
   });
 
